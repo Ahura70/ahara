@@ -9,7 +9,10 @@ import { BottomNav } from './components/BottomNav';
 import { AnimatePresence, motion } from 'motion/react';
 
 function AppContent() {
-  const { currentScreen, showPreferencesPopup, setShowPreferencesPopup, setCurrentScreen } = useAppStore();
+  const { currentScreen, showPreferencesPopup, setShowPreferencesPopup, setCurrentScreen, completePreferencesAndNavigate, workflowStage } = useAppStore();
+
+  // Show bottom nav only after workflow is complete or if user is on login/preferences screens
+  const shouldShowBottomNav = workflowStage === 'WorkflowComplete' || currentScreen === 'login' || currentScreen === 'preferences';
 
   return (
     <>
@@ -21,7 +24,7 @@ function AppContent() {
         {currentScreen === 'planner' && <PlannerScreen key="planner" />}
         {currentScreen === 'gallery' && <SavedImagesScreen key="gallery" />}
       </AnimatePresence>
-      <BottomNav />
+      {shouldShowBottomNav && <BottomNav />}
 
       {/* Popup */}
       {showPreferencesPopup && (
@@ -40,12 +43,13 @@ function AppContent() {
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setShowPreferencesPopup(false);
-                  setCurrentScreen('camera');
+                  completePreferencesAndNavigate();
                 }}
-                className="flex-1 h-12 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 transition-colors"
+                className="flex-1 h-12 rounded-full text-white font-semibold hover:opacity-90 transition-all"
+                style={{ backgroundColor: '#5A7D9A' }}
               >
                 Save
               </button>

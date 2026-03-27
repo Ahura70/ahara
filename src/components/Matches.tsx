@@ -7,7 +7,7 @@ import { VoiceAssistant } from './VoiceAssistant';
 import { Breadcrumb } from './Breadcrumb';
 
 export function MatchesScreen() {
-  const { generatedRecipes, setCurrentScreen, addToWeeklyPlan, weeklyPlan, updateGeneratedRecipeImage, searchQuery, setSearchQuery, prepTimeFilter, setPrepTimeFilter, cookTimeFilter, setCookTimeFilter, difficultyFilter, setDifficultyFilter, favorites, toggleFavorite, preferences } = useAppStore();
+  const { generatedRecipes, setCurrentScreen, addToWeeklyPlan, weeklyPlan, updateGeneratedRecipeImage, searchQuery, setSearchQuery, prepTimeFilter, setPrepTimeFilter, cookTimeFilter, setCookTimeFilter, difficultyFilter, setDifficultyFilter, favorites, toggleFavorite, preferences, completeRecipeAddAndNavigate } = useAppStore();
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [mealType, setMealType] = useState('Dinner');
@@ -19,6 +19,7 @@ export function MatchesScreen() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [substitution, setSubstitution] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const requestedImagesRef = useRef<Set<string>>(new Set());
 
   const cuisines = Array.from(new Set(generatedRecipes.map(r => r.cuisineType).filter(Boolean)));
@@ -69,10 +70,6 @@ export function MatchesScreen() {
   }, [cookModeRecipe]);
 
   useEffect(() => {
-    setCheckedIngredients(new Set());
-  }, [selectedRecipe]);
-
-  useEffect(() => {
     generatedRecipes.forEach(recipe => {
       if (!recipe.imageUrl.startsWith('data:') && !requestedImagesRef.current.has(recipe.id)) {
         requestedImagesRef.current.add(recipe.id);
@@ -100,26 +97,50 @@ export function MatchesScreen() {
   };
 
   const handleConfirmAdd = () => {
-    if (!selectedRecipe) return;
+    // Prevent double submission
+    if (!selectedRecipe || isSubmitting) return;
+
+    // Capture current state values immediately to prevent race conditions
+    const capturedDayIndex = dayIndex;
+    const capturedMealType = mealType;
+    const capturedRecipe = selectedRecipe;
 
     // Check for duplicates
-    const existingDay = weeklyPlan[dayIndex];
+    const existingDay = weeklyPlan[capturedDayIndex];
     if (existingDay && !showDuplicateWarning) {
       const exists = existingDay.recipes.some(
-        m => m.mealType === mealType && m.recipe.title === selectedRecipe.title
+        m => m.mealType === capturedMealType && m.recipe.title === capturedRecipe.title
       );
-      
+
       if (exists) {
         setShowDuplicateWarning(true);
         return;
       }
     }
 
-    addToWeeklyPlan(selectedRecipe, dayIndex, mealType as any);
-    setIsAddModalOpen(false);
-    setSelectedRecipe(null);
-    setShowDuplicateWarning(false);
-    setCurrentScreen('planner');
+    // Set submitting flag to prevent double submission
+    setIsSubmitting(true);
+
+    try {
+      // Add recipe with captured values
+      addToWeeklyPlan(capturedRecipe, capturedDayIndex, capturedMealType as any);
+
+      // Reset modal state
+      setIsAddModalOpen(false);
+      setSelectedRecipe(null);
+      setShowDuplicateWarning(false);
+      setMealType('Dinner');
+      setDayIndex(0);
+
+      // Navigate to planner and complete workflow
+      completeRecipeAddAndNavigate();
+    } catch (error) {
+      console.error('Error adding recipe to weekly plan:', error);
+      alert('Failed to add recipe. Please try again.');
+    } finally {
+      // Always reset submitting flag
+      setIsSubmitting(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -363,29 +384,7 @@ export function MatchesScreen() {
                 <div className="mb-6">
                   <p className="font-semibold text-text-main mb-1">{selectedRecipe.title}</p>
                   <p className="text-sm text-text-muted mb-2">Select when you want to eat this meal.</p>
-                  <p className="text-sm text-text-muted mb-4 font-bold">Ingredients</p>
-                  <ul className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {selectedRecipe.ingredients.map((ing: any, i: number) => {
-                      const id = `${selectedRecipe.id}-${i}`;
-                      const isChecked = checkedIngredients.has(id);
-                      return (
-                        <li key={i} className={`flex items-center gap-3 bg-white/40 p-2 rounded-xl border border-white/50 transition-colors ${isChecked ? 'opacity-60 bg-green-50' : ''}`}>
-                          <button
-                            onClick={() => {
-                              const next = new Set(checkedIngredients);
-                              if (next.has(id)) next.delete(id);
-                              else next.add(id);
-                              setCheckedIngredients(next);
-                            }}
-                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isChecked ? 'bg-green-500 border-green-500 text-white' : 'border-text-muted'}`}
-                          >
-                            {isChecked && <Check className="w-3 h-3" />}
-                          </button>
-                          <span className={`text-sm text-text-main ${isChecked ? 'line-through' : ''}`}>{ing.amount} {ing.unit} {ing.name}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <p className="text-xs text-text-muted font-medium mt-4">Ingredients will be available in Cook Mode</p>
                 </div>
 
                 {showDuplicateWarning ? (
@@ -401,11 +400,12 @@ export function MatchesScreen() {
                       >
                         Cancel
                       </button>
-                      <button 
+                      <button
                         onClick={handleConfirmAdd}
-                        className="flex-1 h-12 rounded-full bg-red-500 text-white font-semibold text-sm uppercase tracking-wider hover:bg-red-600 transition-colors"
+                        disabled={isSubmitting}
+                        className="flex-1 h-12 rounded-full bg-red-500 text-white font-semibold text-sm uppercase tracking-wider hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        Add Anyway
+                        {isSubmitting ? 'Adding...' : 'Add Anyway'}
                       </button>
                     </div>
                   </div>
@@ -438,11 +438,12 @@ export function MatchesScreen() {
                       </select>
                     </div>
 
-                    <button 
+                    <button
                       onClick={handleConfirmAdd}
-                      className="mt-4 w-full h-12 rounded-full bg-primary text-white font-semibold text-sm uppercase tracking-wider hover:bg-primary/90 transition-colors"
+                      disabled={isSubmitting}
+                      className="mt-4 w-full h-12 rounded-full bg-primary text-white font-semibold text-sm uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Confirm
+                      {isSubmitting ? 'Adding...' : 'Confirm'}
                     </button>
                   </div>
                 )}

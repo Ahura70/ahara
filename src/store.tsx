@@ -35,6 +35,10 @@ interface AppState {
   saveImage: (image: string) => void;
   showPreferencesPopup: boolean;
   setShowPreferencesPopup: (show: boolean) => void;
+  workflowStage: 'NotStarted' | 'PreferencesSaved' | 'InCamera' | 'RecipesGenerated' | 'RecipeAdded' | 'WorkflowComplete';
+  setWorkflowStage: (stage: 'NotStarted' | 'PreferencesSaved' | 'InCamera' | 'RecipesGenerated' | 'RecipeAdded' | 'WorkflowComplete') => void;
+  completePreferencesAndNavigate: () => void;
+  completeRecipeAddAndNavigate: () => void;
 }
 
 const defaultPreferences: UserPreferences = {
@@ -54,6 +58,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentScreen, setCurrentScreenState] = useState<Screen>('login');
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
   const [showPreferencesPopup, setShowPreferencesPopup] = useState(false);
+  const [workflowStage, setWorkflowStage] = useState<'NotStarted' | 'PreferencesSaved' | 'InCamera' | 'RecipesGenerated' | 'RecipeAdded' | 'WorkflowComplete'>('NotStarted');
 
   const setCurrentScreen = (screen: Screen) => {
     setNavigationHistory(prev => [...prev, currentScreen]);
@@ -176,6 +181,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Workflow management functions
+  const completePreferencesAndNavigate = () => {
+    setWorkflowStage('PreferencesSaved');
+    setCurrentScreen('camera');
+  };
+
+  const completeRecipeAddAndNavigate = () => {
+    setWorkflowStage('RecipeAdded');
+    setCurrentScreen('planner');
+  };
+
   return (
     <AppContext.Provider value={{
       currentScreen,
@@ -210,7 +226,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       savedImages,
       saveImage,
       showPreferencesPopup,
-      setShowPreferencesPopup
+      setShowPreferencesPopup,
+      workflowStage,
+      setWorkflowStage,
+      completePreferencesAndNavigate,
+      completeRecipeAddAndNavigate
     }}>
       {children}
     </AppContext.Provider>
