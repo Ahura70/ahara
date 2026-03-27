@@ -7,6 +7,7 @@ import { MatchesScreen } from './components/Matches';
 import { PlannerScreen } from './components/Planner';
 import { SavedImagesScreen } from './components/SavedImagesScreen';
 import { DashboardScreen } from './components/dashboard/DashboardScreen';
+import { GroceryScreen } from './components/grocery/GroceryScreen';
 import { BottomNav } from './components/BottomNav';
 import { QuickScanFAB } from './components/QuickScanFAB';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -45,6 +46,7 @@ function AppContent() {
         {currentScreen === 'planner' && <PlannerScreen key="planner" />}
         {currentScreen === 'gallery' && <SavedImagesScreen key="gallery" />}
         {currentScreen === 'dashboard' && <DashboardScreen key="dashboard" />}
+        {currentScreen === 'grocery' && <GroceryScreen key="grocery" />}
       </AnimatePresence>
 
       {/* Quick Scan FAB */}
