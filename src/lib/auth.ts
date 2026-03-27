@@ -1,5 +1,6 @@
 import {
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   GoogleAuthProvider,
   OAuthProvider,
@@ -28,12 +29,11 @@ export interface AuthUser {
 }
 
 /**
- * Sign in with Google
+ * Sign in with Google (using redirect)
  */
-export async function signInWithGoogle(): Promise<AuthUser> {
+export async function signInWithGoogle(): Promise<void> {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return mapFirebaseUser(result.user);
+    await signInWithRedirect(auth, googleProvider);
   } catch (error) {
     console.error('Google sign-in error:', error);
     throw error;
@@ -41,12 +41,11 @@ export async function signInWithGoogle(): Promise<AuthUser> {
 }
 
 /**
- * Sign in with Apple
+ * Sign in with Apple (using redirect)
  */
-export async function signInWithApple(): Promise<AuthUser> {
+export async function signInWithApple(): Promise<void> {
   try {
-    const result = await signInWithPopup(auth, appleProvider);
-    return mapFirebaseUser(result.user);
+    await signInWithRedirect(auth, appleProvider);
   } catch (error) {
     console.error('Apple sign-in error:', error);
     throw error;
@@ -118,6 +117,11 @@ function mapFirebaseUser(firebaseUser: User): AuthUser {
 export async function initializeAuthPersistence(): Promise<void> {
   try {
     await setPersistence(auth, browserLocalPersistence);
+    // Handle redirect result from OAuth flow
+    const result = await getRedirectResult(auth);
+    if (result) {
+      console.log('User signed in via redirect:', result.user.email);
+    }
   } catch (error) {
     console.error('Error setting persistence:', error);
   }
