@@ -19,16 +19,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     try {
       await signInWithGoogle();
-      onSuccess();
+      // Note: Redirect will happen, page will redirect to Google, then back to the app
+      // onSuccess will be called by the store when auth state changes
     } catch (err: any) {
       console.error('Google sign-in error:', err);
-      if (err?.code === 'auth/popup-closed-by-user') {
-        setError('Sign-in was cancelled. Please try again.');
-      } else if (err?.code === 'auth/cancelled-popup-request') {
-        setError('Another sign-in attempt is in progress.');
-      } else {
-        setError('Failed to sign in with Google. Please try again.');
-      }
+      setError('Failed to sign in with Google. Please try again.');
       setActiveProvider(null);
       setLoading(false);
     }
@@ -41,16 +36,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     try {
       await signInWithApple();
-      onSuccess();
+      // Note: Redirect will happen, page will redirect to Apple, then back to the app
+      // onSuccess will be called by the store when auth state changes
     } catch (err: any) {
       console.error('Apple sign-in error:', err);
-      if (err?.code === 'auth/popup-closed-by-user') {
-        setError('Sign-in was cancelled. Please try again.');
-      } else if (err?.code === 'auth/cancelled-popup-request') {
-        setError('Another sign-in attempt is in progress.');
-      } else {
-        setError('Failed to sign in with Apple. Please try again.');
-      }
+      setError('Failed to sign in with Apple. Please try again.');
       setActiveProvider(null);
       setLoading(false);
     }
