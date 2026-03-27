@@ -1,13 +1,14 @@
 import { useAppStore } from '../store';
-import { Camera, Calendar, User, Image as ImageIcon } from 'lucide-react';
+import { Camera, Calendar, User, BarChart3, ShoppingCart } from 'lucide-react';
 
 export function BottomNav() {
   const { currentScreen, setCurrentScreen } = useAppStore();
 
   const items = [
-    { id: 'camera', label: 'Capture', Icon: Camera },
+    { id: 'dashboard', label: 'Today', Icon: BarChart3 },
+    { id: 'camera', label: 'Scan', Icon: Camera },
     { id: 'planner', label: 'Plan', Icon: Calendar },
-    { id: 'gallery', label: 'Gallery', Icon: ImageIcon },
+    { id: 'grocery', label: 'Grocery', Icon: ShoppingCart },
     { id: 'preferences', label: 'Profile', Icon: User },
   ] as const;
 
