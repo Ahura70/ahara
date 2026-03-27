@@ -221,9 +221,10 @@ export function PreferencesScreen() {
 
       {/* Sticky Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-background-light via-background-light/80 to-transparent pointer-events-none z-40">
-        <button 
+        <button
           onClick={() => setShowPreferencesPopup(true)}
-          className="w-full max-w-md mx-auto h-14 bg-white text-text-main font-semibold text-[15px] uppercase tracking-[1.5px] rounded-full shadow-[0_8px_32px_rgba(143,169,177,0.15)] pointer-events-auto hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 active:scale-95"
+          className="w-full max-w-md mx-auto h-14 text-white font-semibold text-[15px] uppercase tracking-[1.5px] rounded-full shadow-[0_8px_32px_rgba(90,125,154,0.4)] pointer-events-auto hover:opacity-90 transition-all flex items-center justify-center gap-2 active:scale-95"
+          style={{ backgroundColor: '#5A7D9A' }}
         >
           Save Preferences
         </button>

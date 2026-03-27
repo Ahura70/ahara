@@ -7,7 +7,7 @@ import { VoiceAssistant } from './VoiceAssistant';
 import { Breadcrumb } from './Breadcrumb';
 
 export function MatchesScreen() {
-  const { generatedRecipes, setCurrentScreen, addToWeeklyPlan, weeklyPlan, updateGeneratedRecipeImage, searchQuery, setSearchQuery, prepTimeFilter, setPrepTimeFilter, cookTimeFilter, setCookTimeFilter, difficultyFilter, setDifficultyFilter, favorites, toggleFavorite, preferences, completeRecipeAddAndNavigate } = useAppStore();
+  const { generatedRecipes, setCurrentScreen, addToWeeklyPlan, weeklyPlan, updateGeneratedRecipeImage, searchQuery, setSearchQuery, prepTimeFilter, setPrepTimeFilter, cookTimeFilter, setCookTimeFilter, difficultyFilter, setDifficultyFilter, favorites, toggleFavorite, preferences, hasCompletedSetup, setHasCompletedSetup } = useAppStore();
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [mealType, setMealType] = useState('Dinner');
@@ -122,7 +122,7 @@ export function MatchesScreen() {
     setIsSubmitting(true);
 
     try {
-      // Add recipe with captured values
+      // Add recipe with captured values (store now uses immutable update)
       addToWeeklyPlan(capturedRecipe, capturedDayIndex, capturedMealType as any);
 
       // Reset modal state
@@ -132,8 +132,11 @@ export function MatchesScreen() {
       setMealType('Dinner');
       setDayIndex(0);
 
-      // Navigate to planner and complete workflow
-      completeRecipeAddAndNavigate();
+      // Mark setup as complete and navigate to planner
+      if (!hasCompletedSetup) {
+        setHasCompletedSetup(true);
+      }
+      setCurrentScreen('planner');
     } catch (error) {
       console.error('Error adding recipe to weekly plan:', error);
       alert('Failed to add recipe. Please try again.');
