@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, Flame, Bookmark, Plus, X, Image as ImageIcon, Loader2, Play, Users, Check, Share2, ExternalLink, Filter } from 'lucide-react';
+import { ArrowLeft, Clock, Flame, Bookmark, Plus, X, Image as ImageIcon, Loader2, Play, Users, Check, Share2, ExternalLink, Filter, Settings } from 'lucide-react';
 import { generateRecipeImage, getIngredientSubstitutions } from '../lib/gemini';
 import { VoiceAssistant } from './VoiceAssistant';
 import { Breadcrumb } from './Breadcrumb';
@@ -163,7 +163,13 @@ export function MatchesScreen() {
       <header className="w-full pt-12 pb-4 px-6 flex items-center justify-between z-10">
         <Breadcrumb />
         <h1 className="font-heading text-3xl font-semibold tracking-wide text-text-main">Perfect Matches</h1>
-        <div className="w-12 h-12"></div>
+        <button
+          onClick={() => setCurrentScreen('preferences')}
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-white/40 hover:bg-white/60 transition-colors"
+          title="Edit Preferences"
+        >
+          <Settings className="w-5 h-5 text-text-main" />
+        </button>
       </header>
 
       {/* Search and Filters */}

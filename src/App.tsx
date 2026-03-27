@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { AppProvider, useAppStore } from './store';
-import { LoginScreen } from './components/Login';
+import { LoginScreen } from './components/LoginScreen';
 import { PreferencesScreen } from './components/Preferences';
 import { CameraScreen } from './components/Camera';
 import { MatchesScreen } from './components/Matches';
@@ -7,6 +8,7 @@ import { PlannerScreen } from './components/Planner';
 import { SavedImagesScreen } from './components/SavedImagesScreen';
 import { BottomNav } from './components/BottomNav';
 import { AnimatePresence, motion } from 'motion/react';
+import { initializeAuthPersistence } from './lib/auth';
 
 function AppContent() {
   const {
@@ -18,7 +20,14 @@ function AppContent() {
     hasCompletedSetup,
     setHasCompletedSetup,
     setCurrentScreen,
+    authUser,
+    setCurrentScreen: updateScreen,
   } = useAppStore();
+
+  // Initialize Firebase Auth persistence
+  useEffect(() => {
+    initializeAuthPersistence();
+  }, []);
 
   // Bottom nav visible once setup is done, hidden during initial workflow and on login
   const shouldShowBottomNav = hasCompletedSetup && currentScreen !== 'login' && currentScreen !== 'camera';
@@ -55,6 +64,7 @@ function AppContent() {
               <button
                 onClick={() => {
                   setShowPreferencesPopup(false);
+                  setHasCompletedSetup(true);
                   setCurrentScreen('camera');
                 }}
                 className="flex-1 h-12 rounded-full text-white font-semibold hover:opacity-90 transition-all"
