@@ -217,6 +217,135 @@ export function PreferencesScreen() {
             </motion.div>
           </div>
         </section>
+
+        {/* Daily Nutrition Goals */}
+        <section className="glass-panel rounded-[24px] p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-heading font-semibold">Daily Nutrition Goals</h2>
+            <p className="text-xs font-medium text-text-muted mt-1">Your daily targets</p>
+          </div>
+          <div className="space-y-6">
+            <motion.div
+              className={`space-y-3 p-4 rounded-2xl transition-all ${activeMacro === 'dailyCalories' ? 'bg-scandi-blue/10 border border-scandi-blue/20' : ''}`}
+              animate={{ scale: activeMacro === 'dailyCalories' ? 1.02 : 1 }}
+            >
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-text-main">Daily Calories</label>
+                <motion.span
+                  className="text-sm font-semibold text-primary"
+                  key={preferences.nutritionGoals?.dailyCalories}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                >{preferences.nutritionGoals?.dailyCalories || 2000}</motion.span>
+              </div>
+              <input
+                type="range" min="1200" max="5000" step="100"
+                value={preferences.nutritionGoals?.dailyCalories || 2000}
+                onMouseDown={() => setActiveMacro('dailyCalories')}
+                onMouseUp={() => setActiveMacro(null)}
+                onTouchStart={() => setActiveMacro('dailyCalories')}
+                onTouchEnd={() => setActiveMacro(null)}
+                onChange={(e) => setPreferences({...preferences, nutritionGoals: {...(preferences.nutritionGoals || {macroTargets: {protein: 150, carbs: 200, fats: 65}, waterGoal: 8}), dailyCalories: parseInt(e.target.value)}})}
+              />
+            </motion.div>
+
+            <motion.div
+              className={`space-y-3 p-4 rounded-2xl transition-all ${activeMacro === 'dailyProtein' ? 'bg-scandi-blue/10 border border-scandi-blue/20' : ''}`}
+              animate={{ scale: activeMacro === 'dailyProtein' ? 1.02 : 1 }}
+            >
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-text-main">Daily Protein</label>
+                <motion.span
+                  className="text-sm font-semibold text-primary"
+                  key={preferences.nutritionGoals?.macroTargets?.protein}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                >{preferences.nutritionGoals?.macroTargets?.protein || 150}g</motion.span>
+              </div>
+              <input
+                type="range" min="50" max="250" step="5"
+                value={preferences.nutritionGoals?.macroTargets?.protein || 150}
+                onMouseDown={() => setActiveMacro('dailyProtein')}
+                onMouseUp={() => setActiveMacro(null)}
+                onTouchStart={() => setActiveMacro('dailyProtein')}
+                onTouchEnd={() => setActiveMacro(null)}
+                onChange={(e) => setPreferences({...preferences, nutritionGoals: {...(preferences.nutritionGoals || {dailyCalories: 2000, waterGoal: 8}), macroTargets: {...(preferences.nutritionGoals?.macroTargets || {carbs: 200, fats: 65}), protein: parseInt(e.target.value)}}})}
+              />
+            </motion.div>
+
+            <motion.div
+              className={`space-y-3 p-4 rounded-2xl transition-all ${activeMacro === 'dailyCarbs' ? 'bg-scandi-blue/10 border border-scandi-blue/20' : ''}`}
+              animate={{ scale: activeMacro === 'dailyCarbs' ? 1.02 : 1 }}
+            >
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-text-main">Daily Carbs</label>
+                <motion.span
+                  className="text-sm font-semibold text-primary"
+                  key={preferences.nutritionGoals?.macroTargets?.carbs}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                >{preferences.nutritionGoals?.macroTargets?.carbs || 200}g</motion.span>
+              </div>
+              <input
+                type="range" min="50" max="400" step="5"
+                value={preferences.nutritionGoals?.macroTargets?.carbs || 200}
+                onMouseDown={() => setActiveMacro('dailyCarbs')}
+                onMouseUp={() => setActiveMacro(null)}
+                onTouchStart={() => setActiveMacro('dailyCarbs')}
+                onTouchEnd={() => setActiveMacro(null)}
+                onChange={(e) => setPreferences({...preferences, nutritionGoals: {...(preferences.nutritionGoals || {dailyCalories: 2000, waterGoal: 8}), macroTargets: {...(preferences.nutritionGoals?.macroTargets || {protein: 150, fats: 65}), carbs: parseInt(e.target.value)}}})}
+              />
+            </motion.div>
+
+            <motion.div
+              className={`space-y-3 p-4 rounded-2xl transition-all ${activeMacro === 'dailyFats' ? 'bg-scandi-blue/10 border border-scandi-blue/20' : ''}`}
+              animate={{ scale: activeMacro === 'dailyFats' ? 1.02 : 1 }}
+            >
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-text-main">Daily Fats</label>
+                <motion.span
+                  className="text-sm font-semibold text-primary"
+                  key={preferences.nutritionGoals?.macroTargets?.fats}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                >{preferences.nutritionGoals?.macroTargets?.fats || 65}g</motion.span>
+              </div>
+              <input
+                type="range" min="25" max="150" step="5"
+                value={preferences.nutritionGoals?.macroTargets?.fats || 65}
+                onMouseDown={() => setActiveMacro('dailyFats')}
+                onMouseUp={() => setActiveMacro(null)}
+                onTouchStart={() => setActiveMacro('dailyFats')}
+                onTouchEnd={() => setActiveMacro(null)}
+                onChange={(e) => setPreferences({...preferences, nutritionGoals: {...(preferences.nutritionGoals || {dailyCalories: 2000, waterGoal: 8}), macroTargets: {...(preferences.nutritionGoals?.macroTargets || {protein: 150, carbs: 200}), fats: parseInt(e.target.value)}}})}
+              />
+            </motion.div>
+
+            <motion.div
+              className={`space-y-3 p-4 rounded-2xl transition-all ${activeMacro === 'water' ? 'bg-scandi-blue/10 border border-scandi-blue/20' : ''}`}
+              animate={{ scale: activeMacro === 'water' ? 1.02 : 1 }}
+            >
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-text-main">Water Goal</label>
+                <motion.span
+                  className="text-sm font-semibold text-primary"
+                  key={preferences.nutritionGoals?.waterGoal}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                >{preferences.nutritionGoals?.waterGoal || 8} glasses</motion.span>
+              </div>
+              <input
+                type="range" min="4" max="16" step="1"
+                value={preferences.nutritionGoals?.waterGoal || 8}
+                onMouseDown={() => setActiveMacro('water')}
+                onMouseUp={() => setActiveMacro(null)}
+                onTouchStart={() => setActiveMacro('water')}
+                onTouchEnd={() => setActiveMacro(null)}
+                onChange={(e) => setPreferences({...preferences, nutritionGoals: {...(preferences.nutritionGoals || {dailyCalories: 2000, macroTargets: {protein: 150, carbs: 200, fats: 65}}), waterGoal: parseInt(e.target.value)}})}
+              />
+            </motion.div>
+          </div>
+        </section>
       </main>
 
       {/* Sticky Bottom CTA */}

@@ -6,6 +6,7 @@ import { CameraScreen } from './components/Camera';
 import { MatchesScreen } from './components/Matches';
 import { PlannerScreen } from './components/Planner';
 import { SavedImagesScreen } from './components/SavedImagesScreen';
+import { DashboardScreen } from './components/dashboard/DashboardScreen';
 import { BottomNav } from './components/BottomNav';
 import { QuickScanFAB } from './components/QuickScanFAB';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -43,6 +44,7 @@ function AppContent() {
         {currentScreen === 'matches' && <MatchesScreen key="matches" />}
         {currentScreen === 'planner' && <PlannerScreen key="planner" />}
         {currentScreen === 'gallery' && <SavedImagesScreen key="gallery" />}
+        {currentScreen === 'dashboard' && <DashboardScreen key="dashboard" />}
       </AnimatePresence>
 
       {/* Quick Scan FAB */}
@@ -73,7 +75,7 @@ function AppContent() {
                 onClick={() => {
                   setShowPreferencesPopup(false);
                   setHasCompletedSetup(true);
-                  setCurrentScreen('camera');
+                  setCurrentScreen('dashboard');
                 }}
                 className="flex-1 h-12 rounded-full text-white font-semibold hover:opacity-90 transition-all"
                 style={{ backgroundColor: '#5A7D9A' }}
