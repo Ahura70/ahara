@@ -3,10 +3,12 @@ import { useAppStore } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Zap, Loader2 } from 'lucide-react';
 import { generateRecipesFromImage } from '../lib/gemini';
+import { ApiErrorMessage, type ApiError } from './ApiErrorMessage';
 
 export function CameraScreen() {
   const { setCurrentScreen, preferences, setGeneratedRecipes, weeklyPlan, saveImage } = useAppStore();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCaptureClick = () => {
@@ -18,6 +20,7 @@ export function CameraScreen() {
     if (!file) return;
 
     setIsProcessing(true);
+    setError(null);
     try {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -33,11 +36,41 @@ export function CameraScreen() {
       const recipes = await generateRecipesFromImage(file, preferences, highlyRatedRecipes);
       setGeneratedRecipes(recipes);
       setCurrentScreen('matches');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to generate recipes", error);
-      alert("Failed to analyze image. Please try again.");
+
+      let apiError: ApiError = {
+        message: 'Failed to analyze image. Please try again.',
+      };
+
+      if (error.message?.includes('API')) {
+        apiError = {
+          code: 'API_KEY_ERROR',
+          message: 'API configuration error. Please contact support.',
+          details: 'The application encountered an API issue while analyzing your image.',
+        };
+      } else if (error.message?.includes('timeout') || error.message?.includes('time out')) {
+        apiError = {
+          code: 'TIMEOUT',
+          message: 'Request took too long to process.',
+          details: 'Try taking a clearer photo of your ingredients.',
+        };
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        apiError = {
+          code: 'NETWORK_ERROR',
+          message: 'Network connection failed.',
+          details: 'Please check your internet connection.',
+        };
+      }
+
+      setError(apiError);
       setIsProcessing(false);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    fileInputRef.current?.click();
   };
 
   return (
@@ -54,16 +87,29 @@ export function CameraScreen() {
 
       <AnimatePresence>
         {isProcessing && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, backdropFilter: 'blur(24px)' }}
             className="absolute inset-0 z-40 flex items-center justify-center flex-col gap-8 bg-white/20"
           >
             <Loader2 className="w-16 h-16 text-white animate-spin" />
-            <p className="text-white font-display font-medium text-lg tracking-widest uppercase drop-shadow-md">
-              Analyzing Āhāraḥ...
-            </p>
+            <div className="text-center">
+              <p className="text-white font-display font-medium text-lg tracking-widest uppercase drop-shadow-md">
+                Analyzing Āhāra...
+              </p>
+              <p className="text-white/80 text-sm mt-2">
+                Identifying ingredients & finding recipes
+              </p>
+            </div>
           </motion.div>
+        )}
+        {error && (
+          <ApiErrorMessage
+            error={error}
+            title="Analysis Failed"
+            onRetry={handleRetry}
+            onDismiss={() => setError(null)}
+          />
         )}
       </AnimatePresence>
 

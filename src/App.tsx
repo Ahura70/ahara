@@ -7,6 +7,8 @@ import { MatchesScreen } from './components/Matches';
 import { PlannerScreen } from './components/Planner';
 import { SavedImagesScreen } from './components/SavedImagesScreen';
 import { BottomNav } from './components/BottomNav';
+import { QuickScanFAB } from './components/QuickScanFAB';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnimatePresence, motion } from 'motion/react';
 import { initializeAuthPersistence } from './lib/auth';
 
@@ -42,6 +44,12 @@ function AppContent() {
         {currentScreen === 'planner' && <PlannerScreen key="planner" />}
         {currentScreen === 'gallery' && <SavedImagesScreen key="gallery" />}
       </AnimatePresence>
+
+      {/* Quick Scan FAB */}
+      {shouldShowBottomNav && (
+        <QuickScanFAB onClick={() => setCurrentScreen('camera')} />
+      )}
+
       {shouldShowBottomNav && <BottomNav />}
 
       {/* Save Preferences Confirmation Popup */}
@@ -82,8 +90,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
