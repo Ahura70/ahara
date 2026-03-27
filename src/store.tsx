@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Screen, UserPreferences, Recipe, DailyMenu, ShoppingListItem } from './types';
+import { AuthUser, getCurrentUser, onAuthStateChange } from './lib/auth';
+import {
+  loadPreferences,
+  savePreferences,
+  loadWeeklyPlan,
+  saveWeeklyPlan,
+  listenToPreferences,
+  listenToWeeklyPlan
+} from './lib/persistence';
 
 // Generate current week dates dynamically
 function getCurrentWeekDates(): DailyMenu[] {
@@ -24,6 +33,8 @@ interface AppState {
   navigationHistory: string[];
   setCurrentScreen: (screen: Screen) => void;
   goBack: () => void;
+  authUser: AuthUser | null;
+  setAuthUser: (user: AuthUser | null) => void;
   preferences: UserPreferences;
   setPreferences: (prefs: UserPreferences) => void;
   generatedRecipes: Recipe[];
@@ -77,6 +88,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
   const [showPreferencesPopup, setShowPreferencesPopup] = useState(false);
   const [hasCompletedSetup, setHasCompletedSetup] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [unsubscribers, setUnsubscribers] = useState<Array<() => void>>([]);
 
   const setCurrentScreen = (screen: Screen) => {
     setNavigationHistory(prev => [...prev, currentScreen]);
@@ -100,9 +113,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  // Initialize auth and setup persistence
+  useEffect(() => {
+    // Check if user is already logged in
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      setAuthUser(currentUser);
+    }
+
+    // Listen to auth state changes
+    const unsubAuth = onAuthStateChange((user) => {
+      setAuthUser(user);
+      if (user) {
+        // User logged in - load data from Firebase
+        loadUserDataFromFirebase(user.uid);
+        // Navigate to camera screen if setup is complete
+        if (hasCompletedSetup) {
+          setCurrentScreenState('camera');
+        }
+      } else {
+        // User logged out
+        setCurrentScreenState('login');
+      }
+    });
+
+    return () => {
+      unsubAuth();
+      // Cleanup other listeners on unmount
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, []);
+
+  // Load user data from Firebase
+  const loadUserDataFromFirebase = async (userId: string) => {
+    try {
+      const savedPrefs = await loadPreferences(userId);
+      if (savedPrefs) {
+        setPreferences(savedPrefs);
+      }
+
+      const savedPlan = await loadWeeklyPlan(userId);
+      if (savedPlan) {
+        setWeeklyPlan(savedPlan);
+      }
+
+      // Setup real-time listeners
+      const unsubPrefs = listenToPreferences(userId, (prefs) => {
+        if (prefs) {
+          setPreferences(prefs);
+        }
+      });
+
+      const unsubPlan = listenToWeeklyPlan(userId, (plan) => {
+        if (plan) {
+          setWeeklyPlan(plan);
+        }
+      });
+
+      setUnsubscribers([unsubPrefs, unsubPlan]);
+    } catch (error) {
+      console.error('Error loading user data from Firebase:', error);
+    }
+  };
+
+  // Save preferences to Firebase when they change
   useEffect(() => {
     localStorage.setItem('userPreferences', JSON.stringify(preferences));
-  }, [preferences]);
+
+    if (authUser && !authUser.isAnonymous) {
+      savePreferences(authUser.uid, preferences).catch(error => {
+        console.error('Error saving preferences to Firebase:', error);
+      });
+    }
+  }, [preferences, authUser]);
 
   const [generatedRecipes, setGeneratedRecipes] = useState<Recipe[]>([]);
   const [favorites, setFavorites] = useState<Recipe[]>([]);
@@ -139,7 +222,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Initialize with current week dates (7 days, Mon-Sun)
-  const [weeklyPlan, setWeeklyPlan] = useState<DailyMenu[]>(getCurrentWeekDates);
+  const [weeklyPlan, setWeeklyPlanState] = useState<DailyMenu[]>(getCurrentWeekDates);
+
+  // Wrapper for setWeeklyPlan to also sync to Firebase
+  const setWeeklyPlan = (updater: DailyMenu[] | ((prev: DailyMenu[]) => DailyMenu[])) => {
+    setWeeklyPlanState((prev) => {
+      const newPlan = typeof updater === 'function' ? updater(prev) : updater;
+
+      // Sync to Firebase if user is authenticated
+      if (authUser && !authUser.isAnonymous) {
+        saveWeeklyPlan(authUser.uid, newPlan).catch(error => {
+          console.error('Error saving weekly plan to Firebase:', error);
+        });
+      }
+
+      return newPlan;
+    });
+  };
 
   // FIX: Immutable update — no shallow-copy mutation
   const addToWeeklyPlan = (recipe: Recipe, dayIndex: number, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack') => {
@@ -217,6 +316,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentScreen,
       goBack,
       navigationHistory,
+      authUser,
+      setAuthUser,
       preferences,
       setPreferences,
       generatedRecipes,
