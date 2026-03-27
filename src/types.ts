@@ -1,58 +1,35 @@
-export type Screen = 'login' | 'preferences' | 'camera' | 'matches' | 'planner' | 'gallery';
+/**
+ * Backward compatibility re-exports from domain modules
+ * This file is deprecated — new code should import from src/types/index or specific domain modules
+ */
 
-export interface Macros {
-  protein: number;
-  carbs: number;
-  fats: number;
-}
+export type {
+  Screen,
+  Macros,
+  Ingredient,
+  NormalizedIngredient,
+  Recipe,
+  GroceryCategory,
+  MealType,
+  MealEntry,
+  QuickAdd,
+  DailyMenu,
+  DailyNutritionLog,
+  GroceryItem,
+  GroceryList,
+  AuthUser,
+  NutritionGoals,
+  UserPreferences,
+  PrepBatch,
+  PrepStep,
+  PrepTimeline,
+  PrepSession,
+} from './types/index';
 
-export interface UserPreferences {
-  cuisines: string[];
-  maxPrepTime: number;
-  macros: Macros;
-  dietaryRestrictions: string[];
-}
+import type { GroceryItem } from './types/index';
 
-export interface Ingredient {
-  name: string;
-  amount: number;
-  unit: string;
-}
-
-export interface Recipe {
-  id: string;
-  title: string;
-  prepTime: number;
-  servings: number;
-  calories: number;
-  macros: Macros;
-  matchPercentage: number;
-  imageUrl: string;
-  ingredients: Ingredient[];
-  instructions: string[];
-  notes?: string;
-  dietaryRestrictions?: string[];
-  cuisineType?: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
-  cookTime?: number; // in minutes
-  isFavorite?: boolean;
-}
-
-export interface ShoppingListItem {
-  name: string;
-  amount: number;
-  unit: string;
-  category: 'produce' | 'dairy' | 'meat' | 'pantry' | 'frozen' | 'other';
-  checked: boolean;
-}
-
-export interface DailyMenu {
-  date: string;
-  dayName: string;
-  recipes: {
-    id: string;
-    mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
-    recipe: Recipe;
-    rating?: number;
-  }[];
-}
+/**
+ * Deprecated: ShoppingListItem
+ * Use GroceryItem instead (richer type with IDs and source tracking)
+ */
+export type ShoppingListItem = GroceryItem;
