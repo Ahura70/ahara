@@ -1,7 +1,26 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Screen, UserPreferences, Recipe, DailyMenu, ShoppingListItem } from './types';
 
+// Generate current week dates dynamically
+function getCurrentWeekDates(): DailyMenu[] {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7)); // Shift to Monday
+
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  return dayNames.map((name, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return { date: `${yyyy}-${mm}-${dd}`, dayName: name, recipes: [] };
+  });
+}
+
 interface AppState {
+  currentScreen: Screen;
   navigationHistory: string[];
   setCurrentScreen: (screen: Screen) => void;
   goBack: () => void;
@@ -12,6 +31,7 @@ interface AppState {
   updateGeneratedRecipeImage: (id: string, imageUrl: string) => void;
   weeklyPlan: DailyMenu[];
   addToWeeklyPlan: (recipe: Recipe, dayIndex: number, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack') => void;
+  removeFromWeeklyPlan: (dayIndex: number, mealIndex: number) => void;
   updateRecipeNotes: (dayIndex: number, mealIndex: number, notes: string) => void;
   rateRecipe: (dayIndex: number, mealIndex: number, rating: number) => void;
   moveRecipe: (sourceDayIndex: number, sourceMealIndex: number, destDayIndex: number, destMealIndex: number) => void;
@@ -35,10 +55,8 @@ interface AppState {
   saveImage: (image: string) => void;
   showPreferencesPopup: boolean;
   setShowPreferencesPopup: (show: boolean) => void;
-  workflowStage: 'NotStarted' | 'PreferencesSaved' | 'InCamera' | 'RecipesGenerated' | 'RecipeAdded' | 'WorkflowComplete';
-  setWorkflowStage: (stage: 'NotStarted' | 'PreferencesSaved' | 'InCamera' | 'RecipesGenerated' | 'RecipeAdded' | 'WorkflowComplete') => void;
-  completePreferencesAndNavigate: () => void;
-  completeRecipeAddAndNavigate: () => void;
+  hasCompletedSetup: boolean;
+  setHasCompletedSetup: (v: boolean) => void;
 }
 
 const defaultPreferences: UserPreferences = {
@@ -58,7 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentScreen, setCurrentScreenState] = useState<Screen>('login');
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
   const [showPreferencesPopup, setShowPreferencesPopup] = useState(false);
-  const [workflowStage, setWorkflowStage] = useState<'NotStarted' | 'PreferencesSaved' | 'InCamera' | 'RecipesGenerated' | 'RecipeAdded' | 'WorkflowComplete'>('NotStarted');
+  const [hasCompletedSetup, setHasCompletedSetup] = useState(false);
 
   const setCurrentScreen = (screen: Screen) => {
     setNavigationHistory(prev => [...prev, currentScreen]);
@@ -72,9 +90,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentScreenState(prevScreen as Screen);
     }
   };
+
   const [preferences, setPreferences] = useState<UserPreferences>(() => {
-    const saved = localStorage.getItem('userPreferences');
-    return saved ? JSON.parse(saved) : defaultPreferences;
+    try {
+      const saved = localStorage.getItem('userPreferences');
+      return saved ? JSON.parse(saved) : defaultPreferences;
+    } catch {
+      return defaultPreferences;
+    }
   });
 
   useEffect(() => {
@@ -84,8 +107,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [generatedRecipes, setGeneratedRecipes] = useState<Recipe[]>([]);
   const [favorites, setFavorites] = useState<Recipe[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [prepTimeFilter, setPrepTimeFilter] = useState(120); // Default 2 hours
-  const [cookTimeFilter, setCookTimeFilter] = useState(120); // Default 2 hours
+  const [prepTimeFilter, setPrepTimeFilter] = useState(120);
+  const [cookTimeFilter, setCookTimeFilter] = useState(120);
   const [difficultyFilter, setDifficultyFilter] = useState<string[]>([]);
   const [calendarView, setCalendarView] = useState<'week' | 'month' | 'year'>('week');
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
@@ -106,90 +129,86 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleShoppingListItem = (name: string) => {
     setShoppingList(prev => prev.map(item => item.name === name ? { ...item, checked: !item.checked } : item));
   };
-  
+
   const addShoppingListItem = (item: ShoppingListItem) => {
     setShoppingList(prev => [...prev, item]);
   };
-  
+
   const updateGeneratedRecipeImage = (id: string, imageUrl: string) => {
     setGeneratedRecipes(prev => prev.map(r => r.id === id ? { ...r, imageUrl } : r));
   };
 
-  // Initialize with some dummy data for the planner to match the mockup
-  const [weeklyPlan, setWeeklyPlan] = useState<DailyMenu[]>([
-    { date: '2023-10-23', dayName: 'Monday', recipes: [] },
-    { date: '2023-10-24', dayName: 'Tuesday', recipes: [] },
-    { date: '2023-10-25', dayName: 'Wednesday', recipes: [] },
-    { date: '2023-10-26', dayName: 'Thursday', recipes: [] },
-    { date: '2023-10-27', dayName: 'Friday', recipes: [] }
-  ]);
+  // Initialize with current week dates (7 days, Mon-Sun)
+  const [weeklyPlan, setWeeklyPlan] = useState<DailyMenu[]>(getCurrentWeekDates);
 
+  // FIX: Immutable update — no shallow-copy mutation
   const addToWeeklyPlan = (recipe: Recipe, dayIndex: number, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack') => {
-    setWeeklyPlan(prev => {
-      const newPlan = [...prev];
-      if (newPlan[dayIndex]) {
-        newPlan[dayIndex].recipes.push({ 
-          id: `meal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          mealType, 
-          recipe 
-        });
-      }
-      return newPlan;
-    });
+    setWeeklyPlan(prev =>
+      prev.map((day, i) =>
+        i === dayIndex
+          ? {
+              ...day,
+              recipes: [
+                ...day.recipes,
+                {
+                  id: `meal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  mealType,
+                  recipe,
+                },
+              ],
+            }
+          : day
+      )
+    );
+  };
+
+  const removeFromWeeklyPlan = (dayIndex: number, mealIndex: number) => {
+    setWeeklyPlan(prev =>
+      prev.map((day, i) =>
+        i === dayIndex
+          ? { ...day, recipes: day.recipes.filter((_, mi) => mi !== mealIndex) }
+          : day
+      )
+    );
   };
 
   const moveRecipe = (sourceDayIndex: number, sourceMealIndex: number, destDayIndex: number, destMealIndex: number) => {
     setWeeklyPlan(prev => {
-      const newPlan = [...prev];
-      
-      // Create copies of the days to avoid direct mutation
-      const sourceDay = { ...newPlan[sourceDayIndex], recipes: [...newPlan[sourceDayIndex].recipes] };
-      const destDay = sourceDayIndex === destDayIndex 
-        ? sourceDay 
-        : { ...newPlan[destDayIndex], recipes: [...newPlan[destDayIndex].recipes] };
-
-      // Remove from source
-      const [movedItem] = sourceDay.recipes.splice(sourceMealIndex, 1);
-      
-      // Insert into destination
-      destDay.recipes.splice(destMealIndex, 0, movedItem);
-
-      newPlan[sourceDayIndex] = sourceDay;
-      newPlan[destDayIndex] = destDay;
-
+      const newPlan = prev.map(day => ({ ...day, recipes: [...day.recipes] }));
+      const [movedItem] = newPlan[sourceDayIndex].recipes.splice(sourceMealIndex, 1);
+      newPlan[destDayIndex].recipes.splice(destMealIndex, 0, movedItem);
       return newPlan;
     });
   };
 
   const updateRecipeNotes = (dayIndex: number, mealIndex: number, notes: string) => {
-    setWeeklyPlan(prev => {
-      const newPlan = [...prev];
-      if (newPlan[dayIndex] && newPlan[dayIndex].recipes[mealIndex]) {
-        newPlan[dayIndex].recipes[mealIndex].recipe.notes = notes;
-      }
-      return newPlan;
-    });
+    setWeeklyPlan(prev =>
+      prev.map((day, i) =>
+        i === dayIndex
+          ? {
+              ...day,
+              recipes: day.recipes.map((meal, mi) =>
+                mi === mealIndex ? { ...meal, recipe: { ...meal.recipe, notes } } : meal
+              ),
+            }
+          : day
+      )
+    );
   };
 
   const rateRecipe = (dayIndex: number, mealIndex: number, rating: number) => {
-    setWeeklyPlan(prev => {
-      const newPlan = [...prev];
-      if (newPlan[dayIndex] && newPlan[dayIndex].recipes[mealIndex]) {
-        newPlan[dayIndex].recipes[mealIndex].rating = rating;
-      }
-      return newPlan;
-    });
-  };
-
-  // Workflow management functions
-  const completePreferencesAndNavigate = () => {
-    setWorkflowStage('PreferencesSaved');
-    setCurrentScreen('camera');
-  };
-
-  const completeRecipeAddAndNavigate = () => {
-    setWorkflowStage('RecipeAdded');
-    setCurrentScreen('planner');
+    setWeeklyPlan(prev =>
+      prev.map((day, i) =>
+        i === dayIndex
+          ? {
+              ...day,
+              recipes: day.recipes.map((meal, mi) =>
+                mi === mealIndex ? { ...meal, rating } : meal
+              ),
+            }
+          : day
+      )
+    );
   };
 
   return (
@@ -197,6 +216,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentScreen,
       setCurrentScreen,
       goBack,
+      navigationHistory,
       preferences,
       setPreferences,
       generatedRecipes,
@@ -204,6 +224,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateGeneratedRecipeImage,
       weeklyPlan,
       addToWeeklyPlan,
+      removeFromWeeklyPlan,
       updateRecipeNotes,
       rateRecipe,
       moveRecipe,
@@ -227,10 +248,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveImage,
       showPreferencesPopup,
       setShowPreferencesPopup,
-      workflowStage,
-      setWorkflowStage,
-      completePreferencesAndNavigate,
-      completeRecipeAddAndNavigate
+      hasCompletedSetup,
+      setHasCompletedSetup,
     }}>
       {children}
     </AppContext.Provider>

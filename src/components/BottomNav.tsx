@@ -4,52 +4,36 @@ import { Camera, Calendar, User, Image as ImageIcon } from 'lucide-react';
 export function BottomNav() {
   const { currentScreen, setCurrentScreen } = useAppStore();
 
-  // Don't show nav on login or camera screens
-  if (currentScreen === 'login' || currentScreen === 'camera') return null;
+  const items = [
+    { id: 'camera', label: 'Capture', Icon: Camera },
+    { id: 'planner', label: 'Plan', Icon: Calendar },
+    { id: 'gallery', label: 'Gallery', Icon: ImageIcon },
+    { id: 'preferences', label: 'Profile', Icon: User },
+  ] as const;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
       <div className="glass-panel rounded-t-3xl border-t border-white/60">
-        <div className="flex gap-2 px-4 pb-6 pt-3">
-          <button 
-            onClick={() => setCurrentScreen('camera')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 transition-colors ${currentScreen === 'camera' ? 'text-primary' : 'text-text-muted hover:text-primary'}`}
-          >
-            <div className="flex h-8 items-center justify-center">
-              <Camera className="w-6 h-6" />
-            </div>
-            <p className="text-[11px] font-bold leading-normal tracking-wide uppercase">Capture</p>
-          </button>
-          
-          <button 
-            onClick={() => setCurrentScreen('planner')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 transition-colors ${currentScreen === 'planner' ? 'text-primary' : 'text-text-muted hover:text-primary'}`}
-          >
-            <div className="flex h-8 items-center justify-center">
-              <Calendar className={`w-6 h-6 ${currentScreen === 'planner' ? 'fill-current' : ''}`} />
-            </div>
-            <p className="text-[11px] font-bold leading-normal tracking-wide uppercase">Plan</p>
-          </button>
-          
-          <button 
-            onClick={() => setCurrentScreen('gallery')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 transition-colors ${currentScreen === 'gallery' ? 'text-primary' : 'text-text-muted hover:text-primary'}`}
-          >
-            <div className="flex h-8 items-center justify-center">
-              <ImageIcon className={`w-6 h-6 ${currentScreen === 'gallery' ? 'fill-current' : ''}`} />
-            </div>
-            <p className="text-[11px] font-bold leading-normal tracking-wide uppercase">Gallery</p>
-          </button>
-          
-          <button 
-            onClick={() => setCurrentScreen('preferences')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 transition-colors ${currentScreen === 'preferences' ? 'text-primary' : 'text-text-muted hover:text-primary'}`}
-          >
-            <div className="flex h-8 items-center justify-center">
-              <User className="w-6 h-6" />
-            </div>
-            <p className="text-[11px] font-bold leading-normal tracking-wide uppercase">Profile</p>
-          </button>
+        <div className="flex gap-1 px-4 pb-6 pt-3">
+          {items.map(({ id, label, Icon }) => {
+            const isActive = currentScreen === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setCurrentScreen(id)}
+                className={`flex flex-1 flex-col items-center justify-end gap-1 py-1 rounded-2xl transition-all ${
+                  isActive ? 'text-primary' : 'text-text-muted hover:text-primary'
+                }`}
+              >
+                <div className="flex h-8 items-center justify-center">
+                  <Icon className={`w-6 h-6 transition-all ${isActive ? 'scale-110' : ''}`} />
+                </div>
+                <p className={`text-[11px] font-bold leading-normal tracking-wide uppercase transition-all ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                  {label}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
