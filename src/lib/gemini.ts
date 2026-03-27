@@ -4,7 +4,19 @@ import { UserPreferences, Recipe } from '../types';
 // Initialize the Gemini API client
 // Note: In a real app, you might want to handle missing keys more gracefully,
 // but for this prototype, we assume it's provided in the environment.
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!apiKey || apiKey === 'test_key_for_ui_testing') {
+  console.warn(
+    '⚠️ WARNING: Using test Gemini API key. Image analysis will fail.\n' +
+    'To enable image analysis:\n' +
+    '1. Get a real API key from https://aistudio.google.com/app/apikey\n' +
+    '2. Update .env file: VITE_GEMINI_API_KEY=your_actual_key\n' +
+    '3. Restart the development server'
+  );
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export async function generateRecipeImage(prompt: string): Promise<string> {
   try {
