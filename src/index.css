@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #5A7D9A;
+  --color-scandi-blue: #8FA9B1;
+  --color-background-light: #F0F4F5;
+  --color-background-dark: #1A1F24;
+  --color-text-main: #3E464D;
+  --color-text-muted: #7F8C95;
+  --color-accent: #D6E1E4;
+  
+  --font-heading: "Cormorant Garamond", serif;
+  --font-body: "Quicksand", sans-serif;
+  --font-display: "Manrope", sans-serif;
+
+  --radius-glass: 24px;
+  --radius-pill: 99px;
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/55 backdrop-blur-xl border-t border-l border-white/70 shadow-[0_8px_32px_rgba(143,169,177,0.1)];
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Custom Range Slider */
+  input[type=range] {
+    -webkit-appearance: none;
+    @apply w-full bg-transparent;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    @apply h-5 w-5 rounded-full bg-scandi-blue cursor-pointer -mt-2 shadow-[0_2px_8px_rgba(143,169,177,0.3)] border-2 border-white;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    @apply w-full h-1 cursor-pointer bg-white/90 rounded-sm;
+  }
+  input[type=range]:focus {
+    outline: none;
+  }
+}
+
+body {
+  @apply font-body bg-background-light text-text-main min-h-screen;
+  background-image: radial-gradient(at 0% 0%, #E8EEF1 0px, transparent 50%), radial-gradient(at 50% 0%, #F5F7F8 0px, transparent 50%), radial-gradient(at 100% 0%, #E0E7EA 0px, transparent 50%), radial-gradient(at 0% 50%, #F0F4F5 0px, transparent 50%), radial-gradient(at 100% 50%, #E8EEF1 0px, transparent 50%), radial-gradient(at 0% 100%, #F5F7F8 0px, transparent 50%), radial-gradient(at 100% 100%, #E0E7EA 0px, transparent 50%);
+  background-attachment: fixed;
+}
