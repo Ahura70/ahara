@@ -1,4 +1,5 @@
 import {
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
@@ -29,26 +30,40 @@ export interface AuthUser {
 }
 
 /**
- * Sign in with Google (using redirect)
+ * Sign in with Google (using popup - better for web apps)
  */
 export async function signInWithGoogle(): Promise<void> {
   try {
-    await signInWithRedirect(auth, googleProvider);
-  } catch (error) {
-    console.error('Google sign-in error:', error);
-    throw error;
+    // Try popup first (works better for web and emulator)
+    await signInWithPopup(auth, googleProvider);
+  } catch (error: any) {
+    // If popup blocked, fall back to redirect
+    if (error.code === 'auth/popup-blocked') {
+      console.warn('Popup blocked, using redirect instead');
+      await signInWithRedirect(auth, googleProvider);
+    } else {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
   }
 }
 
 /**
- * Sign in with Apple (using redirect)
+ * Sign in with Apple (using popup - better for web apps)
  */
 export async function signInWithApple(): Promise<void> {
   try {
-    await signInWithRedirect(auth, appleProvider);
-  } catch (error) {
-    console.error('Apple sign-in error:', error);
-    throw error;
+    // Try popup first (works better for web and emulator)
+    await signInWithPopup(auth, appleProvider);
+  } catch (error: any) {
+    // If popup blocked, fall back to redirect
+    if (error.code === 'auth/popup-blocked') {
+      console.warn('Popup blocked, using redirect instead');
+      await signInWithRedirect(auth, appleProvider);
+    } else {
+      console.error('Apple sign-in error:', error);
+      throw error;
+    }
   }
 }
 

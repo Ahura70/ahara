@@ -7,6 +7,34 @@ export interface LoginScreenProps {
   onSuccess: () => void;
 }
 
+/**
+ * Get user-friendly error message from Firebase error
+ */
+function getErrorMessage(error: any, provider: string): string {
+  if (!error) return `Failed to sign in with ${provider}. Please try again.`;
+
+  const code = error.code || '';
+  const message = error.message || '';
+
+  if (code.includes('popup-blocked')) {
+    return `${provider} sign-in popup was blocked. Please allow popups and try again.`;
+  }
+  if (code.includes('cancelled-popup-request')) {
+    return `${provider} sign-in was cancelled. Please try again.`;
+  }
+  if (code.includes('unauthorized-domain')) {
+    return 'This domain is not authorized for authentication. Please check Firebase configuration.';
+  }
+  if (code.includes('invalid-api-key')) {
+    return 'Invalid Firebase configuration. Please check your environment variables.';
+  }
+  if (message.includes('fetch')) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+
+  return `Failed to sign in with ${provider}. Please try again.`;
+}
+
 export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,11 +47,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     try {
       await signInWithGoogle();
-      // Note: Redirect will happen, page will redirect to Google, then back to the app
+      // Note: Will use popup or redirect, page will redirect to Google, then back to the app
       // onSuccess will be called by the store when auth state changes
     } catch (err: any) {
       console.error('Google sign-in error:', err);
-      setError('Failed to sign in with Google. Please try again.');
+      const errorMsg = getErrorMessage(err, 'Google');
+      setError(errorMsg);
       setActiveProvider(null);
       setLoading(false);
     }
@@ -36,11 +65,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     try {
       await signInWithApple();
-      // Note: Redirect will happen, page will redirect to Apple, then back to the app
+      // Note: Will use popup or redirect, page will redirect to Apple, then back to the app
       // onSuccess will be called by the store when auth state changes
     } catch (err: any) {
       console.error('Apple sign-in error:', err);
-      setError('Failed to sign in with Apple. Please try again.');
+      const errorMsg = getErrorMessage(err, 'Apple');
+      setError(errorMsg);
       setActiveProvider(null);
       setLoading(false);
     }

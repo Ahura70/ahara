@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, Flame, Bookmark, Plus, X, Image as ImageIcon, Loader2, Play, Users, Check, Share2, ExternalLink, Filter, Settings } from 'lucide-react';
+import { ArrowLeft, Clock, Flame, Bookmark, Plus, X, Image as ImageIcon, Loader2, Play, Users, Check, Share2, ExternalLink, Filter, Settings, QrCode } from 'lucide-react';
 import { generateRecipeImage, getIngredientSubstitutions } from '../lib/gemini';
 import { VoiceAssistant } from './VoiceAssistant';
 import { Breadcrumb } from './Breadcrumb';
+import { BarcodeScanner } from './scan/BarcodeScanner';
 
 export function MatchesScreen() {
-  const { generatedRecipes, setCurrentScreen, addToWeeklyPlan, weeklyPlan, updateGeneratedRecipeImage, searchQuery, setSearchQuery, prepTimeFilter, setPrepTimeFilter, cookTimeFilter, setCookTimeFilter, difficultyFilter, setDifficultyFilter, favorites, toggleFavorite, preferences, hasCompletedSetup, setHasCompletedSetup } = useAppStore();
+  const { generatedRecipes, setCurrentScreen, addToWeeklyPlan, weeklyPlan, updateGeneratedRecipeImage, searchQuery, setSearchQuery, prepTimeFilter, setPrepTimeFilter, cookTimeFilter, setCookTimeFilter, difficultyFilter, setDifficultyFilter, favorites, toggleFavorite, preferences, hasCompletedSetup, setHasCompletedSetup, addShoppingListItem } = useAppStore();
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [mealType, setMealType] = useState('Dinner');
@@ -20,7 +21,21 @@ export function MatchesScreen() {
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [substitution, setSubstitution] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
   const requestedImagesRef = useRef<Set<string>>(new Set());
+
+  const handleBarcodeScanComplete = (ingredients: Array<{ name: string; amount?: number; unit?: string }>) => {
+    ingredients.forEach(ing => {
+      addShoppingListItem({
+        name: ing.name,
+        amount: ing.amount || 1,
+        unit: ing.unit || 'unit',
+        category: 'pantry',
+        checked: false,
+      });
+    });
+    setIsBarcodeScannerOpen(false);
+  };
 
   const cuisines = Array.from(new Set(generatedRecipes.map(r => r.cuisineType).filter(Boolean)));
 
@@ -174,13 +189,22 @@ export function MatchesScreen() {
 
       {/* Search and Filters */}
       <div className="px-6 pb-4 space-y-4">
-        <input 
-          type="text"
-          placeholder="Search recipes..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-3 rounded-xl bg-white/60 border border-white/80 focus:outline-none focus:ring-2 focus:ring-primary/50"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Search recipes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 p-3 rounded-xl bg-white/60 border border-white/80 focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <button
+            onClick={() => setIsBarcodeScannerOpen(true)}
+            className="px-4 py-3 rounded-xl bg-white/60 border border-white/80 hover:bg-white/80 transition-colors flex items-center justify-center"
+            title="Scan barcode"
+          >
+            <QrCode className="w-5 h-5 text-text-main" />
+          </button>
+        </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {['easy', 'medium', 'hard'].map(d => (
             <button 
@@ -558,6 +582,14 @@ export function MatchesScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        isOpen={isBarcodeScannerOpen}
+        onClose={() => setIsBarcodeScannerOpen(false)}
+        onDetected={handleBarcodeScanComplete}
+        title="Scan Product Barcode"
+      />
     </motion.div>
   );
 }
