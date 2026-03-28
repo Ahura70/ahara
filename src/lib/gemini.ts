@@ -507,3 +507,31 @@ Return as JSON.`,
 
   return JSON.parse(response.text);
 }
+
+/**
+ * Analyze text (like a barcode) to extract product and ingredient information
+ * Used by the barcode scanner to identify products and their ingredients
+ */
+export async function analyzeIngredients(prompt: string): Promise<any> {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        {
+          text: prompt,
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No response from Gemini");
+
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Error analyzing ingredients:", error);
+    throw error;
+  }
+}

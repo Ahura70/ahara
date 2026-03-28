@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { Share, Clock, X, GripVertical, Star, Users, Flame, Bookmark, Check, Camera, Trash2 } from 'lucide-react';
+import { Share, Clock, X, GripVertical, Star, Users, Flame, Bookmark, Check, Camera, Trash2, QrCode } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { VoiceAssistant } from './VoiceAssistant';
 import { CalendarView } from './CalendarView';
 import { Breadcrumb } from './Breadcrumb';
+import { BarcodeScanner } from './scan/BarcodeScanner';
 import { getIngredientSubstitutions } from '../lib/gemini';
 
 export function PlannerScreen() {
@@ -18,6 +19,19 @@ export function PlannerScreen() {
       setNewIngredient({ name: '', amount: 0, unit: '', category: 'pantry' });
     }
   };
+
+  const handleBarcodeScanComplete = (ingredients: Array<{ name: string; amount?: number; unit?: string }>) => {
+    ingredients.forEach(ing => {
+      addShoppingListItem({
+        name: ing.name,
+        amount: ing.amount || 1,
+        unit: ing.unit || 'unit',
+        category: 'pantry',
+        checked: false,
+      });
+    });
+    setIsBarcodeScannerOpen(false);
+  };
   const [expandedRecipeId, setExpandedRecipeId] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareSummary, setShareSummary] = useState<string | null>(null);
@@ -25,6 +39,7 @@ export function PlannerScreen() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [substitution, setSubstitution] = useState<string | null>(null);
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
 
   const handleSubstitution = async (ingredient: any) => {
     setSubstitution("Loading...");
@@ -138,14 +153,23 @@ export function PlannerScreen() {
       </header>
 
       <main className="flex-1 px-4 py-6 space-y-8">
-        {/* Quick action: scan more ingredients */}
-        <button
-          onClick={() => setCurrentScreen('camera')}
-          className="w-full h-12 rounded-full text-white font-semibold text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:opacity-90 transition-all active:scale-95"
-          style={{ backgroundColor: '#5A7D9A' }}
-        >
-          <Camera className="w-5 h-5" /> Scan More Ingredients
-        </button>
+        {/* Quick actions: scan ingredients */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setCurrentScreen('camera')}
+            className="h-12 rounded-full text-white font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:opacity-90 transition-all active:scale-95"
+            style={{ backgroundColor: '#5A7D9A' }}
+          >
+            <Camera className="w-4 h-4" /> Scan Ingredients
+          </button>
+          <button
+            onClick={() => setIsBarcodeScannerOpen(true)}
+            className="h-12 rounded-full text-white font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:opacity-90 transition-all active:scale-95"
+            style={{ backgroundColor: '#7A8DA8' }}
+          >
+            <QrCode className="w-4 h-4" /> Scan Barcode
+          </button>
+        </div>
 
         {/* Calendar View */}
         <CalendarView />
@@ -536,6 +560,14 @@ export function PlannerScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        isOpen={isBarcodeScannerOpen}
+        onClose={() => setIsBarcodeScannerOpen(false)}
+        onDetected={handleBarcodeScanComplete}
+        title="Scan Product Barcode"
+      />
     </motion.div>
   );
 }
