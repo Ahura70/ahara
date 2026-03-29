@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Google Sign-In Diagnostics</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .check-item {
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 14px;
+    }
+    .check-item.pending {
+      background: #f0f0f0;
+      color: #666;
+    }
+    .check-item.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .check-item.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .check-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .check-content {
+      flex: 1;
+    }
+    .check-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .check-message {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    .test-button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .test-button:hover {
+      background: #5568d3;
+    }
+    .test-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .details {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      color: #333;
+    }
+    .code {
+      background: #fff;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Firebase Diagnostics</h1>
+    <p class="subtitle">Checking Google Sign-In configuration...</p>
+
+    <div id="checks"></div>
+
+    <button class="test-button" id="testBtn" disabled>Test Google Sign-In</button>
+
+    <div class="details" id="details" style="display:none;"></div>
+  </div>
+
+  <script type="module">
+    // Replace with your Firebase config from .env.local
+    const firebaseConfig = {
+      apiKey: "AIzaSyDeYseVfGyHuUv_GodgxvPMg85aovpoqyU",
+      authDomain: "ahara-116e0.firebaseapp.com",
+      projectId: "ahara-116e0",
+      storageBucket: "ahara-116e0.firebasestorage.app",
+      messagingSenderId: "234239774853",
+      appId: "1:234239774853:web:e0458e2dd7929db57b99ec",
+    };
+
+    const checks = [];
+    const checksEl = document.getElementById('checks');
+    const testBtn = document.getElementById('testBtn');
+    const detailsEl = document.getElementById('details');
+
+    function addCheck(id, title, pending = true) {
+      const item = { id, title, status: pending ? 'pending' : 'checking' };
+      checks.push(item);
+      renderChecks();
+      return item;
+    }
+
+    function updateCheck(id, status, message) {
+      const check = checks.find(c => c.id === id);
+      if (check) {
+        check.status = status;
+        check.message = message;
+        renderChecks();
+      }
+    }
+
+    function renderChecks() {
+      checksEl.innerHTML = checks.map(check => `
+        <div class="check-item ${check.status}">
+          <div class="check-icon">
+            ${check.status === 'success' ? '✓' : check.status === 'error' ? '✕' : '○'}
+          </div>
+          <div class="check-content">
+            <div class="check-title">${check.title}</div>
+            ${check.message ? `<div class="check-message">${check.message}</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function runDiagnostics() {
+      try {
+        // Check 1: Firebase SDK
+        addCheck('sdk', 'Firebase SDK');
+        const { initializeApp, getAuth } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js').catch(e => {
+          updateCheck('sdk', 'error', 'Failed to load Firebase SDK');
+          throw e;
+        });
+        updateCheck('sdk', 'success', 'SDK loaded successfully');
+
+        // Check 2: Initialize Firebase
+        addCheck('init', 'Firebase Initialization');
+        try {
+          const app = initializeApp(firebaseConfig);
+          updateCheck('init', 'success', `Project: ${firebaseConfig.projectId}`);
+
+          // Check 3: Auth setup
+          addCheck('auth', 'Authentication Service');
+          const auth = getAuth(app);
+          updateCheck('auth', 'success', `Auth domain: ${firebaseConfig.authDomain}`);
+
+          // Check 4: Google Provider
+          addCheck('provider', 'Google Provider');
+          const { GoogleAuthProvider } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+          const googleProvider = new GoogleAuthProvider();
+          updateCheck('provider', 'success', 'Google OAuth provider initialized');
+
+          // Check 5: Domain check
+          addCheck('domain', 'Current Domain');
+          const currentDomain = window.location.hostname;
+          const isLocalhost = currentDomain === 'localhost' || currentDomain === '127.0.0.1';
+          const isAuthorized = isLocalhost || currentDomain.includes('vercel.app') || currentDomain.includes('firebaseapp.com');
+
+          if (isAuthorized) {
+            updateCheck('domain', 'success', `${currentDomain} should be authorized`);
+          } else {
+            updateCheck('domain', 'error', `${currentDomain} - Add this to Firebase Authorized Domains`);
+          }
+
+          // Enable test button
+          testBtn.disabled = false;
+          testBtn.onclick = () => testGoogleSignIn(auth, googleProvider);
+
+        } catch (error) {
+          updateCheck('init', 'error', error.message);
+        }
+      } catch (error) {
+        console.error('Diagnostic error:', error);
+        addCheck('error', 'Unexpected Error', error.message);
+      }
+    }
+
+    async function testGoogleSignIn(auth, googleProvider) {
+      testBtn.disabled = true;
+      addCheck('test', 'Testing Google Sign-In...');
+      detailsEl.style.display = 'block';
+
+      try {
+        const { signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+
+        const result = await signInWithPopup(auth, googleProvider);
+        updateCheck('test', 'success', `Signed in as: ${result.user.email}`);
+        detailsEl.innerHTML = `<strong>✅ Success!</strong><br>User: ${result.user.email}<br>UID: ${result.user.uid}`;
+      } catch (error) {
+        updateCheck('test', 'error', `Error: ${error.code}`);
+
+        let solution = '';
+        if (error.code === 'auth/popup-blocked') {
+          solution = 'Popup blocker is preventing sign-in. Allow popups in browser settings or try incognito mode.';
+        } else if (error.code === 'auth/unauthorized-domain') {
+          solution = `Add "${window.location.hostname}" to Firebase Console → Authentication → Authorized Domains`;
+        } else if (error.code === 'auth/invalid-api-key') {
+          solution = 'Firebase API key is invalid. Check .env.local VITE_FIREBASE_API_KEY matches Firebase Console';
+        } else if (error.code === 'auth/operation-not-supported-in-this-environment') {
+          solution = 'Verify running on proper domain (not file://)';
+        }
+
+        detailsEl.innerHTML = `
+          <strong>❌ Error Details:</strong><br>
+          Code: <code>${error.code}</code><br>
+          Message: ${error.message}<br>
+          ${solution ? `<br><strong>Solution:</strong> ${solution}` : ''}
+        `;
+
+        console.error('Full error:', error);
+      }
+
+      testBtn.disabled = false;
+    }
+
+    // Start diagnostics
+    runDiagnostics();
+  </script>
+</body>
+</html>
