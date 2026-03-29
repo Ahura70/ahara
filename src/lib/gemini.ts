@@ -71,6 +71,56 @@ export async function generateRecipesFromImage(
   preferences: UserPreferences,
   highlyRatedRecipes: Recipe[] = []
 ): Promise<Recipe[]> {
+  const imageSchema = {
+    type: Type.ARRAY,
+    items: {
+      type: Type.OBJECT,
+      properties: {
+        id: { type: Type.STRING, description: "A unique string ID for the recipe" },
+        title: { type: Type.STRING, description: "The name of the recipe" },
+        prepTime: { type: Type.INTEGER, description: "Preparation time in minutes" },
+        servings: { type: Type.INTEGER, description: "Number of servings the recipe makes" },
+        calories: { type: Type.INTEGER, description: "Total calories" },
+        macros: {
+          type: Type.OBJECT,
+          properties: {
+            protein: { type: Type.INTEGER },
+            carbs: { type: Type.INTEGER },
+            fats: { type: Type.INTEGER }
+          },
+          required: ["protein", "carbs", "fats"]
+        },
+        matchPercentage: { type: Type.INTEGER, description: "How well it matches preferences (0-100)" },
+        imageUrl: { type: Type.STRING, description: "A short, descriptive keyword for the dish to use as an image seed" },
+        ingredients: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "Name of the ingredient" },
+              amount: { type: Type.NUMBER, description: "Quantity of the ingredient" },
+              unit: { type: Type.STRING, description: "Unit of measurement (e.g., 'grams', 'ml', 'cups', 'tbsp', 'pieces')" }
+            },
+            required: ["name", "amount", "unit"]
+          },
+          description: "List of ingredients with quantities and units"
+        },
+        instructions: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "Step by step instructions"
+        },
+        dietaryRestrictions: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "List of dietary restrictions this recipe adheres to (e.g., Vegetarian, Gluten-Free)"
+        },
+        cuisineType: { type: Type.STRING, description: "The cuisine type of the recipe" }
+      },
+      required: ["id", "title", "prepTime", "servings", "calories", "macros", "matchPercentage", "imageUrl", "ingredients", "instructions", "cuisineType"]
+    }
+  };
+
   try {
     const imagePart = await fileToGenerativePart(imageFile);
 
@@ -93,81 +143,61 @@ export async function generateRecipesFromImage(
       ${highlyRatedPrompt}
 
       Generate exactly 3 recipe recommendations that primarily use the ingredients shown (you may assume basic pantry staples like oil, salt, pepper, common spices are available).
-      
+
       For each recipe, provide a descriptive visual keyword that could be used to search for an image of the finished dish (e.g., "salmon bowl", "quinoa salad").
 
       Return the result as a JSON array of objects.
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: [
-        imagePart,
-        { text: prompt }
-      ],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING, description: "A unique string ID for the recipe" },
-              title: { type: Type.STRING, description: "The name of the recipe" },
-              prepTime: { type: Type.INTEGER, description: "Preparation time in minutes" },
-              servings: { type: Type.INTEGER, description: "Number of servings the recipe makes" },
-              calories: { type: Type.INTEGER, description: "Total calories" },
-              macros: {
-                type: Type.OBJECT,
-                properties: {
-                  protein: { type: Type.INTEGER },
-                  carbs: { type: Type.INTEGER },
-                  fats: { type: Type.INTEGER }
-                },
-                required: ["protein", "carbs", "fats"]
-              },
-              matchPercentage: { type: Type.INTEGER, description: "How well it matches preferences (0-100)" },
-              imageUrl: { type: Type.STRING, description: "A short, descriptive keyword for the dish to use as an image seed" },
-              ingredients: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING, description: "Name of the ingredient" },
-                    amount: { type: Type.NUMBER, description: "Quantity of the ingredient" },
-                    unit: { type: Type.STRING, description: "Unit of measurement (e.g., 'grams', 'ml', 'cups', 'tbsp', 'pieces')" }
-                  },
-                  required: ["name", "amount", "unit"]
-                },
-                description: "List of ingredients with quantities and units"
-              },
-              instructions: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "Step by step instructions"
-              },
-              dietaryRestrictions: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "List of dietary restrictions this recipe adheres to (e.g., Vegetarian, Gluten-Free)"
-              },
-              cuisineType: { type: Type.STRING, description: "The cuisine type of the recipe" }
-            },
-            required: ["id", "title", "prepTime", "servings", "calories", "macros", "matchPercentage", "imageUrl", "ingredients", "instructions", "cuisineType"]
-          }
+    console.log('📤 Sending image to Gemini API for analysis...');
+
+    let response;
+    let modelUsed = 'gemini-3-flash-preview';
+
+    try {
+      response = await ai.models.generateContent({
+        model: modelUsed,
+        contents: [
+          imagePart,
+          { text: prompt }
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: imageSchema
         }
-      }
-    });
+      });
+    } catch (modelError: any) {
+      console.warn(`⚠️ Model ${modelUsed} failed, trying fallback model...`);
+      // Fallback to gemini-2.0-flash if primary model fails
+      modelUsed = 'gemini-2.0-flash';
+      response = await ai.models.generateContent({
+        model: modelUsed,
+        contents: [
+          imagePart,
+          { text: prompt }
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: imageSchema
+        }
+      });
+    }
 
     const text = response.text;
     if (!text) throw new Error("No response from Gemini");
 
+    console.log(`✅ Received response from ${modelUsed}`);
     const recipes: Recipe[] = JSON.parse(text);
-    
+
+    if (!Array.isArray(recipes) || recipes.length === 0) {
+      throw new Error("Gemini returned empty recipe list");
+    }
+
+    console.log(`📝 Generated ${recipes.length} recipes`);
     return recipes;
 
-  } catch (error) {
-    console.error("Error generating recipes:", error);
+  } catch (error: any) {
+    console.error("❌ Error generating recipes:", error?.message || error);
     throw error;
   }
 }
@@ -506,6 +536,157 @@ Return as JSON.`,
   });
 
   return JSON.parse(response.text);
+}
+
+/**
+ * Generate recipes from multiple ingredient images
+ * Analyzes all images together to identify ingredients and generate recipes
+ */
+export async function generateRecipesFromMultipleImages(
+  imageFiles: File[],
+  preferences: UserPreferences,
+  highlyRatedRecipes: Recipe[] = []
+): Promise<Recipe[]> {
+  if (!imageFiles || imageFiles.length === 0) {
+    throw new Error("No images provided");
+  }
+
+  const imageSchema = {
+    type: Type.ARRAY,
+    items: {
+      type: Type.OBJECT,
+      properties: {
+        id: { type: Type.STRING, description: "A unique string ID for the recipe" },
+        title: { type: Type.STRING, description: "The name of the recipe" },
+        prepTime: { type: Type.INTEGER, description: "Preparation time in minutes" },
+        servings: { type: Type.INTEGER, description: "Number of servings the recipe makes" },
+        calories: { type: Type.INTEGER, description: "Total calories" },
+        macros: {
+          type: Type.OBJECT,
+          properties: {
+            protein: { type: Type.INTEGER },
+            carbs: { type: Type.INTEGER },
+            fats: { type: Type.INTEGER }
+          },
+          required: ["protein", "carbs", "fats"]
+        },
+        matchPercentage: { type: Type.INTEGER, description: "How well it matches preferences (0-100)" },
+        imageUrl: { type: Type.STRING, description: "A short, descriptive keyword for the dish to use as an image seed" },
+        ingredients: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "Name of the ingredient" },
+              amount: { type: Type.NUMBER, description: "Quantity of the ingredient" },
+              unit: { type: Type.STRING, description: "Unit of measurement (e.g., 'grams', 'ml', 'cups', 'tbsp', 'pieces')" }
+            },
+            required: ["name", "amount", "unit"]
+          },
+          description: "List of ingredients with quantities and units"
+        },
+        instructions: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "Step by step instructions"
+        },
+        dietaryRestrictions: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "List of dietary restrictions this recipe adheres to (e.g., Vegetarian, Gluten-Free)"
+        },
+        cuisineType: { type: Type.STRING, description: "The cuisine type of the recipe" }
+      },
+      required: ["id", "title", "prepTime", "servings", "calories", "macros", "matchPercentage", "imageUrl", "ingredients", "instructions", "cuisineType"]
+    }
+  };
+
+  try {
+    // Convert all images to base64
+    console.log(`📤 Processing ${imageFiles.length} image(s) for analysis...`);
+    const imageParts = await Promise.all(
+      imageFiles.map((file, idx) => {
+        console.log(`  📸 Image ${idx + 1}: ${file.name}`);
+        return fileToGenerativePart(file);
+      })
+    );
+
+    let highlyRatedPrompt = "";
+    if (highlyRatedRecipes.length > 0) {
+      highlyRatedPrompt = `
+      The user has previously highly rated the following recipes. Try to suggest recipes with similar flavor profiles, ingredients, or cooking styles:
+      ${highlyRatedRecipes.map(r => `- ${r.title} (${r.cuisineType || 'General'})`).join('\n')}
+      `;
+    }
+
+    const prompt = `
+      You are an expert chef and nutritionist. Analyze ALL provided images of ingredients.
+      Combine the ingredients visible across all images, and based on the following user preferences:
+      - Preferred Cuisines: ${preferences.cuisines.join(', ') || 'Any'}
+      - Dietary Restrictions: ${(preferences.dietaryRestrictions || []).join(', ') || 'None'}
+      - Maximum Prep Time: ${preferences.maxPrepTime} minutes
+      - Target Macros per meal (approximate): Protein ${preferences.macros.protein}g, Carbs ${preferences.macros.carbs}g, Fats ${preferences.macros.fats}g
+
+      ${highlyRatedPrompt}
+
+      Generate exactly 3 recipe recommendations that primarily use the ingredients shown across ALL images (you may assume basic pantry staples like oil, salt, pepper, common spices are available).
+
+      For each recipe, provide a descriptive visual keyword that could be used to search for an image of the finished dish (e.g., "salmon bowl", "quinoa salad").
+
+      Return the result as a JSON array of objects.
+    `;
+
+    // Build contents array with all image parts
+    const contents = [
+      ...imageParts,
+      { text: prompt }
+    ];
+
+    console.log('📤 Sending images to Gemini API for analysis...');
+
+    let response;
+    let modelUsed = 'gemini-3-flash-preview';
+
+    try {
+      response = await ai.models.generateContent({
+        model: modelUsed,
+        contents: contents,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: imageSchema
+        }
+      });
+    } catch (modelError: any) {
+      console.warn(`⚠️ Model ${modelUsed} failed, trying fallback model...`);
+      // Fallback to gemini-2.0-flash if primary model fails
+      modelUsed = 'gemini-2.0-flash';
+      response = await ai.models.generateContent({
+        model: modelUsed,
+        contents: contents,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: imageSchema
+        }
+      });
+    }
+
+    const text = response.text;
+    if (!text) throw new Error("No response from Gemini");
+
+    console.log(`✅ Received response from ${modelUsed}`);
+    const recipes: Recipe[] = JSON.parse(text);
+
+    if (!Array.isArray(recipes) || recipes.length === 0) {
+      throw new Error("Gemini returned empty recipe list");
+    }
+
+    console.log(`📝 Generated ${recipes.length} recipes from ${imageFiles.length} image(s)`);
+    return recipes;
+
+  } catch (error: any) {
+    console.error("❌ Error generating recipes from multiple images:", error?.message || error);
+    throw error;
+  }
 }
 
 /**

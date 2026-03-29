@@ -12,6 +12,7 @@ import { MealPrepScreen } from './components/mealprep/MealPrepScreen';
 import { BottomNav } from './components/BottomNav';
 import { QuickScanFAB } from './components/QuickScanFAB';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SwipeNavigator } from './components/SwipeNavigator';
 import { AnimatePresence, motion } from 'motion/react';
 import { initializeAuthPersistence } from './lib/auth';
 
@@ -79,7 +80,7 @@ function AppContent() {
                 onClick={() => {
                   setShowPreferencesPopup(false);
                   setHasCompletedSetup(true);
-                  setCurrentScreen('dashboard');
+                  setCurrentScreen('camera');
                 }}
                 className="flex-1 h-12 rounded-full text-white font-semibold hover:opacity-90 transition-all"
                 style={{ backgroundColor: '#5A7D9A' }}
@@ -98,7 +99,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <AppContent />
+        <SwipeNavigator>
+          <AppContent />
+        </SwipeNavigator>
       </AppProvider>
     </ErrorBoundary>
   );

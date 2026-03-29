@@ -1,65 +1,130 @@
 import React, { useRef, useState } from 'react';
 import { useAppStore } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Zap, Loader2 } from 'lucide-react';
-import { generateRecipesFromImage } from '../lib/gemini';
+import { ArrowLeft, Zap, Loader2, Plus, X, Image as ImageIcon } from 'lucide-react';
+import { generateRecipesFromMultipleImages } from '../lib/gemini';
 import { ApiErrorMessage, type ApiError } from './ApiErrorMessage';
+
+interface SelectedImage {
+  file: File;
+  preview: string;
+}
 
 export function CameraScreen() {
   const { setCurrentScreen, preferences, setGeneratedRecipes, weeklyPlan, saveImage } = useAppStore();
+  const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCaptureClick = () => {
-    fileInputRef.current?.click();
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryClick = () => {
+    galleryInputRef.current?.click();
+  };
+
+  const processFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const preview = reader.result as string;
+      saveImage(preview);
+      setSelectedImages(prev => [...prev, { file, preview }]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCameraFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) processFile(file);
+    // Reset input so same file can be selected again
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
+  const handleGalleryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => processFile(file));
+    }
+    // Reset input
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAnalyze = async () => {
+    if (selectedImages.length === 0) {
+      setError({
+        message: 'Please select at least one image',
+        details: 'Take a picture or choose images from your gallery.',
+      });
+      return;
+    }
 
     setIsProcessing(true);
     setError(null);
+
     try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        saveImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const files = selectedImages.map(img => img.file);
 
       const highlyRatedRecipes = weeklyPlan
         .flatMap(day => day.recipes)
         .filter(meal => (meal.rating || 0) >= 4)
         .map(meal => meal.recipe);
 
-      const recipes = await generateRecipesFromImage(file, preferences, highlyRatedRecipes);
+      console.log('🔍 Starting recipe analysis with', files.length, 'image(s)');
+      const recipes = await generateRecipesFromMultipleImages(files, preferences, highlyRatedRecipes);
+
+      if (!recipes || recipes.length === 0) {
+        throw new Error('No recipes generated from the images');
+      }
+
+      console.log('✅ Successfully generated', recipes.length, 'recipes');
       setGeneratedRecipes(recipes);
       setCurrentScreen('matches');
     } catch (error: any) {
-      console.error("Failed to generate recipes", error);
+      console.error('❌ Failed to generate recipes:', error);
 
       let apiError: ApiError = {
-        message: 'Failed to analyze image. Please try again.',
+        message: 'Failed to analyze images. Please try again.',
       };
 
-      if (error.message?.includes('API')) {
+      const errorMsg = error?.message?.toLowerCase() || '';
+      const errorCode = error?.code?.toLowerCase() || '';
+
+      if (errorMsg.includes('api') || errorMsg.includes('gemini') || errorCode.includes('api')) {
         apiError = {
           code: 'API_KEY_ERROR',
-          message: 'API configuration error. Please contact support.',
-          details: 'The application encountered an API issue while analyzing your image.',
+          message: 'API configuration error.',
+          details: 'Check that your Gemini API key is valid and has quota available.',
         };
-      } else if (error.message?.includes('timeout') || error.message?.includes('time out')) {
+      } else if (errorMsg.includes('timeout') || errorMsg.includes('time out') || errorMsg.includes('deadline')) {
         apiError = {
           code: 'TIMEOUT',
-          message: 'Request took too long to process.',
-          details: 'Try taking a clearer photo of your ingredients.',
+          message: 'Analysis took too long.',
+          details: 'Try using fewer images or with clearer photos.',
         };
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      } else if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('connection')) {
         apiError = {
           code: 'NETWORK_ERROR',
           message: 'Network connection failed.',
-          details: 'Please check your internet connection.',
+          details: 'Check your internet connection and try again.',
+        };
+      } else if (errorMsg.includes('no recipes') || errorMsg.includes('no response')) {
+        apiError = {
+          code: 'NO_RECIPES',
+          message: 'Could not generate recipes.',
+          details: 'The images might not show clear ingredients. Try different photos.',
+        };
+      } else if (errorMsg.includes('invalid') || errorMsg.includes('malformed')) {
+        apiError = {
+          code: 'INVALID_RESPONSE',
+          message: 'Invalid response from AI.',
+          details: 'Try again with different images.',
         };
       }
 
@@ -70,15 +135,14 @@ export function CameraScreen() {
 
   const handleRetry = () => {
     setError(null);
-    fileInputRef.current?.click();
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="h-screen w-full relative bg-black overflow-hidden"
+      className="h-screen w-full relative bg-black overflow-hidden flex flex-col"
     >
       {/* Simulated Camera Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#88C0D0] to-[#E5E9F0]">
@@ -98,7 +162,7 @@ export function CameraScreen() {
                 Analyzing Āhāra...
               </p>
               <p className="text-white/80 text-sm mt-2">
-                Identifying ingredients & finding recipes
+                {selectedImages.length} ingredient photo{selectedImages.length !== 1 ? 's' : ''} • Finding recipes
               </p>
             </div>
           </motion.div>
@@ -118,11 +182,11 @@ export function CameraScreen() {
 
       {/* UI Layer */}
       <div className={`absolute inset-0 z-30 flex flex-col justify-between pointer-events-none transition-opacity duration-300 ${isProcessing ? 'opacity-0' : 'opacity-100'}`}>
-        
+
         {/* Top Nav */}
         <div className="w-full pt-14 px-6 flex justify-center pointer-events-auto">
           <div className="bg-white/30 backdrop-blur-md border border-white/50 rounded-full h-14 flex items-center justify-between px-2 w-full max-w-sm">
-            <button 
+            <button
               onClick={() => setCurrentScreen('preferences')}
               className="w-10 h-10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
             >
@@ -151,39 +215,119 @@ export function CameraScreen() {
                 initial={{ opacity: 0.5 }}
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className={`absolute w-12 h-12 ${pos.top !== undefined ? 'top-0' : 'bottom-0'} ${pos.left !== undefined ? 'left-0' : 'right-0'} 
-                  ${pos.borderT ? 'border-t-4' : ''} ${pos.borderB ? 'border-b-4' : ''} 
-                  ${pos.borderL ? 'border-l-4' : ''} ${pos.borderR ? 'border-r-4' : ''} 
+                className={`absolute w-12 h-12 ${pos.top !== undefined ? 'top-0' : 'bottom-0'} ${pos.left !== undefined ? 'left-0' : 'right-0'}
+                  ${pos.borderT ? 'border-t-4' : ''} ${pos.borderB ? 'border-b-4' : ''}
+                  ${pos.borderL ? 'border-l-4' : ''} ${pos.borderR ? 'border-r-4' : ''}
                   border-white/90 drop-shadow-lg`}
               />
             ))}
           </div>
         </div>
 
-        {/* Shutter Button */}
-        <div className="w-full pb-20 px-6 flex justify-center items-center pointer-events-auto">
-          <input 
-            type="file" 
-            accept="image/*" 
-            capture="environment" 
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden" 
-          />
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleCaptureClick}
-            className="w-20 h-20 rounded-full border-4 border-white/80 flex items-center justify-center p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-300"
-          >
-            <motion.div 
-              animate={{ backgroundColor: ["rgba(255,255,255,0.5)", "rgba(255,255,255,0.8)", "rgba(255,255,255,0.5)"] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="w-full h-full rounded-full backdrop-blur-md border border-white/70"
-            ></motion.div>
-          </motion.button>
-        </div>
+        {/* Bottom Controls */}
+        <div className="w-full pb-24 px-6 flex flex-col items-center gap-4 pointer-events-auto">
+          {/* Image Thumbnails */}
+          <AnimatePresence>
+            {selectedImages.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="flex gap-3 flex-wrap justify-center max-w-sm"
+              >
+                {selectedImages.map((img, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    className="relative"
+                  >
+                    <img
+                      src={img.preview}
+                      alt={`Selected ${idx + 1}`}
+                      className="w-16 h-16 rounded-lg object-cover border-2 border-white/60"
+                    />
+                    <button
+                      onClick={() => removeImage(idx)}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={cameraInputRef}
+              onChange={handleCameraFileChange}
+              className="hidden"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              ref={galleryInputRef}
+              onChange={handleGalleryFileChange}
+              className="hidden"
+            />
+
+            {/* Camera Button */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleCameraClick}
+              className="w-16 h-16 rounded-full border-4 border-white/80 flex items-center justify-center p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+            >
+              <motion.div
+                animate={{ backgroundColor: ["rgba(255,255,255,0.5)", "rgba(255,255,255,0.8)", "rgba(255,255,255,0.5)"] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="w-full h-full rounded-full backdrop-blur-md border border-white/70"
+              ></motion.div>
+            </motion.button>
+
+            {/* Gallery Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleGalleryClick}
+              className="w-16 h-16 rounded-full bg-white/40 backdrop-blur-md border border-white/60 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+            >
+              <ImageIcon className="w-7 h-7 text-white" />
+            </motion.button>
+          </div>
+
+          {/* Analyze Button */}
+          <AnimatePresence>
+            {selectedImages.length > 0 && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                onClick={handleAnalyze}
+                disabled={isProcessing}
+                className="w-full max-w-xs h-14 rounded-full text-white font-semibold text-sm uppercase tracking-wider shadow-[0_8px_32px_rgba(0,0,0,0.3)] disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90 transition-all active:scale-95"
+                style={{ backgroundColor: '#5A7D9A' }}
+              >
+                Use these {selectedImages.length} image{selectedImages.length !== 1 ? 's' : ''}
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          {/* Help Text */}
+          <p className="text-white/70 text-xs text-center max-w-xs">
+            {selectedImages.length === 0
+              ? '📷 Take a photo of ingredients or 🖼️ select from gallery'
+              : '✅ Add more photos for better recipe suggestions'}
+          </p>
+        </div>
       </div>
     </motion.div>
   );

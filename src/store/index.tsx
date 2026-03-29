@@ -123,9 +123,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           console.error('Error loading user data from Firebase:', error);
         }
 
-        // Navigate to camera if setup complete
-        if (navigationState.hasCompletedSetup) {
-          navigationState.setCurrentScreen('camera');
+        // Navigate based on setup status:
+        // - If setup not complete → go to preferences to set up dietary prefs
+        // - If setup complete → go to dashboard (home screen)
+        if (!navigationState.hasCompletedSetup) {
+          navigationState.setCurrentScreen('preferences');
+        } else {
+          navigationState.setCurrentScreen('dashboard');
+        }
+      } else if (user && user.isAnonymous) {
+        // Guest user: navigate to preferences if setup not complete, else dashboard
+        if (!navigationState.hasCompletedSetup) {
+          navigationState.setCurrentScreen('preferences');
+        } else {
+          navigationState.setCurrentScreen('dashboard');
         }
       } else if (!user) {
         // User logged out
