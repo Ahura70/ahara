@@ -3,10 +3,6 @@ import { motion } from 'motion/react';
 import { signInWithGoogle, signInWithApple, signInAsGuest } from '../lib/auth';
 import { Loader2, AlertCircle } from 'lucide-react';
 
-export interface LoginScreenProps {
-  onSuccess: () => void;
-}
-
 /**
  * Get user-friendly error message from Firebase error
  */
@@ -35,7 +31,7 @@ function getErrorMessage(error: any, provider: string): string {
   return `Failed to sign in with ${provider}. Please try again.`;
 }
 
-export function LoginScreen({ onSuccess }: LoginScreenProps) {
+export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
@@ -83,7 +79,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     try {
       await signInAsGuest();
-      onSuccess();
+      // Note: Auth state listener will handle navigation automatically after sign-in
     } catch (err: any) {
       console.error('Guest sign-in error:', err);
       setError('Failed to continue as guest. Please try again.');
