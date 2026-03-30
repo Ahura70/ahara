@@ -4,5 +4,16 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.production
+.env.*.local
+.env.*.production
 !.env.example
+
+# Secrets and credentials
+.credentials.json
+*.key
+*.pem
